@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Disease Prediction</title>
+    <style>
+        /* 🌟 Colorful Background */
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #ff9a9e, #fad0c4);
+            color: white;
+            text-align: center;
+            padding: 50px;
+        }
+
+        /* 🩺 Stylish Form */
+        form {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 20px;
+            border-radius: 12px;
+            display: inline-block;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(8px);
+            text-align: center;
+            width: 300px;
+        }
+
+        /* 🎨 Input Fields */
+        input {
+            width: 80%;
+            padding: 10px;
+            margin: 10px 0;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            text-align: center;
+            background: white;
+            color: black;
+        }
+
+        /* 🌈 Buttons */
+        button {
+            background: #ff9800;
+            color: white;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 18px;
+            transition: 0.3s;
+        }
+
+        button:hover {
+            background: #2fa53e;
+        }
+
+        /* 🎯 Pop-up Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            width: 300px;
+            color: black;
+        }
+
+        .modal button {
+            background: red;
+            margin-top: 10px;
+        }
+
+        /* 🔹 Background Overlay */
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>🩺 Diabetes Prediction</h1>
+    <form id="predictionForm" method="post">
+        {% csrf_token %}
+        <label>Enter BMI:</label>
+        <input type="text" id="bmiInput" name="BMI" placeholder="Enter BMI" required>
+        <button type="button" onclick="openBMICalculator()">Calculate BMI</button>
+        <br>
+        <br>
+        <label>Enter Age:</label>
+        <input type="text" name="Age" placeholder="Enter Age" required>
+        <button type="submit">Predict</button>
+    </form>
+
+    <!-- 🔹 Pop-up Modal for Prediction Result -->
+    <div id="resultModal" class="modal">
+        <h2>Prediction Result</h2>
+        <p id="resultText"></p>
+        <button onclick="closeResultModal()">Close</button>
+    </div>
+
+    <!-- 🔹 BMI Calculator Modal -->
+    <div id="bmiModal" class="modal">
+        <h2>Calculate Your BMI</h2>
+        <label>Weight (kg):</label>
+        <input type="number" id="weightInput" placeholder="Enter weight">
+        <label>Height (cm):</label>
+        <input type="number" id="heightInput" placeholder="Enter height in cm">
+        <button onclick="calculateBMI()">Calculate</button>
+        <button onclick="closeBMICalculator()">Close</button>
+        <p id="bmiResult"></p>
+    </div>
+    
+    <!-- 🔹 Background Overlay -->
+    <div id="overlay" class="overlay"></div>
+
+    <script>
+        // 🟢 Open BMI Calculator Pop-up
+        function openBMICalculator() {
+            document.getElementById("bmiModal").style.display = "block";
+            document.getElementById("overlay").style.display = "block";
+        }
+
+        // 🔴 Close BMI Calculator Pop-up
+        function closeBMICalculator() {
+            document.getElementById("bmiModal").style.display = "none";
+            document.getElementById("overlay").style.display = "none";
+        }
+
+        // 📊 Calculate BMI (Height in CM) and Autofill Input Field
+        function calculateBMI() {
+            let weight = parseFloat(document.getElementById("weightInput").value);
+            let height = parseFloat(document.getElementById("heightInput").value);
+
+            if (weight > 0 && height > 0) {
+                let heightInMeters = height / 100; // Convert cm to meters
+                let bmi = weight / (heightInMeters * heightInMeters); // Calculate BMI
+                let roundedBMI = Math.round(bmi); // Round to whole number
+
+                // ✅ Ensure BMI is between 1 and 100
+                if (roundedBMI < 1) roundedBMI = 1;
+                if (roundedBMI > 100) roundedBMI = 100;
+
+                document.getElementById("bmiInput").value = roundedBMI;  // Autofill BMI field
+                document.getElementById("bmiResult").innerText = `Your BMI is: ${roundedBMI}`;
+            } else {
+                document.getElementById("bmiResult").innerText = "Please enter valid values.";
+            }
+        }
+
+        // 🟢 Open Result Pop-up
+        function openResultModal(resultText) {
+            document.getElementById("resultText").innerText = resultText;
+            document.getElementById("resultModal").style.display = "block";
+            document.getElementById("overlay").style.display = "block";
+        }
+
+        // 🔴 Close Result Pop-up
+        function closeResultModal() {
+            document.getElementById("resultModal").style.display = "none";
+            document.getElementById("overlay").style.display = "none";
+        }
+
+        // 🔄 AJAX Form Submission with Pop-up Result
+        document.getElementById("predictionForm").onsubmit = async function(e) {
+            e.preventDefault();
+            
+            let formData = new FormData(this);
+            let csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            
+            let response = await fetch("/predict/", {
+                method: "POST",
+                body: formData,
+                headers: {
+                    "X-CSRFToken": csrftoken  
+                }
+            });
+
+            let data = await response.json();
+            openResultModal(data.prediction || data.error); // Show result in pop-up
+        };
+    </script>
+
+</body>
+</html>
